@@ -1,0 +1,14 @@
+{
+  "Information": [
+    "Deployment configuration for the AWS Lambda .NET CLI tool (dotnet-lambda).",
+    "Run: dotnet lambda deploy-function"
+  ],
+  "profile": "",
+  "region": "eu-west-1",
+  "configuration": "Release",
+  "function-architecture": "x86_64",
+  "function-runtime": "dotnet10",
+  "function-memory-size": 512,
+  "function-timeout": 30,
+  "function-handler": "DocLens.Lambda"
+}

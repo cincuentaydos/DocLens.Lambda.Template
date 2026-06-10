@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AWSProjectType>Lambda</AWSProjectType>
+    <RootNamespace>DocLens.Lambda</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="2.1.0" />
+    <PackageReference Include="AWS.Lambda.Powertools.Logging" Version="3.2.2" />
+    <PackageReference Include="AWS.Lambda.Powertools.Metrics" Version="3.2.2" />
+    <PackageReference Include="AWS.Lambda.Powertools.Tracing" Version="3.2.2" />
+    <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.20.4" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.4.5" />
+    <PackageReference Include="AWSSDK.Textract" Version="4.0.4.5" />
+  </ItemGroup>
+
+</Project>
