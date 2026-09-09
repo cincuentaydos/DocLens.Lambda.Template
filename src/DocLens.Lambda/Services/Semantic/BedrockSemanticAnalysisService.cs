@@ -3,20 +3,24 @@ using System.Text.Json;
 using Amazon.BedrockRuntime;
 using Amazon.BedrockRuntime.Model;
 using DocLens.Lambda.Models;
+using DocLens.Lambda.Options;
+using Microsoft.Extensions.Options;
 
 namespace DocLens.Lambda.Services.Semantic;
 
 public class BedrockSemanticAnalysisService : ISemanticAnalysisService
 {
-    // Claude 3 Haiku — fast and cost-efficient for structured extraction
-    private const string ModelId = "anthropic.claude-3-haiku-20240307-v1:0";
-
     private readonly IAmazonBedrockRuntime _bedrock;
+    private readonly BedrockOptions _options;
     private readonly ILogger<BedrockSemanticAnalysisService> _logger;
 
-    public BedrockSemanticAnalysisService(IAmazonBedrockRuntime bedrock, ILogger<BedrockSemanticAnalysisService> logger)
+    public BedrockSemanticAnalysisService(
+        IAmazonBedrockRuntime bedrock,
+        IOptions<BedrockOptions> options,
+        ILogger<BedrockSemanticAnalysisService> logger)
     {
         _bedrock = bedrock;
+        _options = options.Value;
         _logger = logger;
     }
 
@@ -25,14 +29,15 @@ public class BedrockSemanticAnalysisService : ISemanticAnalysisService
         DocumentType documentType,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Starting semantic analysis for document type {DocumentType}", documentType);
+        _logger.LogInformation("Starting semantic analysis for document type {DocumentType} using model {ModelId}",
+            documentType, _options.ModelId);
 
         var prompt = BuildPrompt(rawText, documentType);
 
         var requestBody = JsonSerializer.Serialize(new
         {
             anthropic_version = "bedrock-2023-05-31",
-            max_tokens = 1024,
+            max_tokens = _options.MaxTokens,
             messages = new[]
             {
                 new { role = "user", content = prompt }
@@ -41,7 +46,7 @@ public class BedrockSemanticAnalysisService : ISemanticAnalysisService
 
         var response = await _bedrock.InvokeModelAsync(new InvokeModelRequest
         {
-            ModelId = ModelId,
+            ModelId = _options.ModelId,
             ContentType = "application/json",
             Accept = "application/json",
             Body = new MemoryStream(Encoding.UTF8.GetBytes(requestBody))

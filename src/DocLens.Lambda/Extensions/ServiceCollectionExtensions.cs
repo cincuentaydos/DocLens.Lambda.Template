@@ -1,6 +1,7 @@
 using Amazon.Textract;
 using Amazon.BedrockRuntime;
 using DocLens.Lambda.Context;
+using DocLens.Lambda.Options;
 using DocLens.Lambda.Services.Extraction;
 using DocLens.Lambda.Services.Ocr;
 using DocLens.Lambda.Services.Semantic;
@@ -14,6 +15,11 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         services.AddDefaultAWSOptions(configuration.GetAWSOptions());
+
+        services.AddOptions<BedrockOptions>()
+            .Bind(configuration.GetSection(BedrockOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddAWSService<IAmazonTextract>();
         services.AddAWSService<IAmazonBedrockRuntime>();
