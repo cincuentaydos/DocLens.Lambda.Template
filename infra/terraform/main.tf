@@ -10,17 +10,18 @@ terraform {
 
   # Backend values are intentionally omitted here and passed at init time so
   # sbx and prod can share one state bucket/lock table (created by
-  # bootstrap/) under different keys:
+  # DocLens.Infra/bootstrap/) under different keys:
   #
   #   terraform init \
   #     -backend-config="bucket=doclens-terraform-state-<ACCOUNT_ID>" \
-  #     -backend-config="key=infra/<ENV>/terraform.tfstate" \
+  #     -backend-config="key=lambda-processing/<ENV>/terraform.tfstate" \
   #     -backend-config="region=eu-west-1" \
   #     -backend-config="dynamodb_table=doclens-terraform-locks" \
   #     -backend-config="encrypt=true"
   #
   # <ACCOUNT_ID> and the bucket name come from `terraform output` in
-  # bootstrap/ (run once, see bootstrap/main.tf). <ENV> is "sbx" or "prod".
+  # DocLens.Infra/bootstrap/ (run once per account, see that repo). <ENV> is
+  # "sbx" or "prod".
   backend "s3" {}
 }
 
@@ -36,80 +37,38 @@ provider "aws" {
   }
 }
 
-# ACM certificates and the CloudFront WAF WebACL must live in us-east-1
-# regardless of the primary region — see ADR-009.
-provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
-
-  default_tags {
-    tags = {
-      Project     = "DocLens"
-      Environment = var.environment
-      ManagedBy   = "terraform"
-    }
-  }
-}
+data "aws_caller_identity" "current" {}
 
 locals {
-  site_fqdn = var.environment == "prod" ? var.domain_name : "${var.environment}.${var.domain_name}"
+  # Same deterministic name DocLens.Infra/bootstrap/main.tf gives the shared
+  # state bucket.
+  state_bucket = "doclens-terraform-state-${data.aws_caller_identity.current.account_id}"
 }
 
-module "network" {
-  source      = "./modules/network"
-  environment = var.environment
-}
+# Reads DocLens.Infra's outputs for the platform resources this module
+# needs (document bucket, Aurora cluster, Cognito) — see
+# DocLens.Infra/README.md "Cross-repo wiring". DocLens.Infra must already
+# be applied for this environment before this can succeed.
+data "terraform_remote_state" "infra" {
+  backend = "s3"
 
-module "auth" {
-  source      = "./modules/auth"
-  environment = var.environment
-}
-
-module "data" {
-  source               = "./modules/data"
-  environment          = var.environment
-  db_subnet_group_name = module.network.db_subnet_group_name
-  security_group_id    = module.network.aurora_security_group_id
-}
-
-module "documents" {
-  source           = "./modules/documents"
-  environment      = var.environment
-  frontend_origins = ["https://${local.site_fqdn}"]
+  config = {
+    bucket = local.state_bucket
+    key    = "infra/${var.environment}/terraform.tfstate"
+    region = var.aws_region
+  }
 }
 
 module "processing" {
   source              = "./modules/processing"
   environment         = var.environment
-  document_bucket_arn = module.documents.bucket_arn
-  document_bucket_id  = module.documents.bucket_id
-  aurora_cluster_arn  = module.data.cluster_arn
-  aurora_secret_arn   = module.data.master_user_secret_arn
-  user_pool_client_id = module.auth.user_pool_client_id
-  user_pool_endpoint  = module.auth.user_pool_endpoint
+  document_bucket_arn = data.terraform_remote_state.infra.outputs.document_bucket_arn
+  document_bucket_id  = data.terraform_remote_state.infra.outputs.document_bucket_id
+  aurora_cluster_arn  = data.terraform_remote_state.infra.outputs.aurora_cluster_arn
+  aurora_secret_arn   = data.terraform_remote_state.infra.outputs.aurora_secret_arn
+  user_pool_client_id = data.terraform_remote_state.infra.outputs.user_pool_client_id
+  user_pool_endpoint  = data.terraform_remote_state.infra.outputs.user_pool_endpoint
   lambda_zip_path     = var.lambda_zip_path
   embedding_model_id  = var.embedding_model_id
   chat_model_id       = var.chat_model_id
-}
-
-module "knowledge_base" {
-  source              = "./modules/knowledge_base"
-  environment         = var.environment
-  document_bucket_arn = module.documents.bucket_arn
-  aurora_cluster_arn  = module.data.cluster_arn
-  aurora_secret_arn   = module.data.master_user_secret_arn
-  database_name       = module.data.database_name
-  embedding_model_id  = var.embedding_model_id
-}
-
-module "edge" {
-  source = "./modules/edge"
-  providers = {
-    aws           = aws
-    aws.us_east_1 = aws.us_east_1
-  }
-  environment        = var.environment
-  domain_name        = var.domain_name
-  create_hosted_zone = var.create_hosted_zone
-  api_endpoint       = module.processing.api_endpoint
 }

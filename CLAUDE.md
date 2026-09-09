@@ -68,7 +68,7 @@ dotnet run --project src/DocLens.Lambda
 
 ## Deployment
 
-Infrastructure is managed via Terraform (`infra/terraform/`) — see `infra/README.md` for the full setup (bootstrap, `sbx`/`prod` tfvars, the one-time Aurora `pgvector` migration).
+This repo's own compute (`processing` module: API/Processor/OCR-result Lambdas, API Gateway, SQS) is managed via Terraform (`infra/terraform/`) — see `infra/README.md` for setup and `sbx`/`prod` tfvars. Everything else (Cognito, Aurora, document bucket, Knowledge Base, CloudFront/WAF/DNS, and the one-time Aurora `pgvector` migration) lives in the separate `DocLens.Infra` repo — see its README for the cross-repo wiring between the two.
 
 Manual Lambda deployment (outside Terraform, for quick iteration):
 
