@@ -20,6 +20,8 @@
     <PackageReference Include="AWS.Lambda.Powertools.Tracing" Version="3.2.2" />
     <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.20.4" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.4.5" />
+    <PackageReference Include="AWSSDK.RDSDataService" Version="4.0.100" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.6" />
     <PackageReference Include="AWSSDK.Textract" Version="4.0.4.5" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
   </ItemGroup>

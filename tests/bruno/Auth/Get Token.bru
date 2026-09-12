@@ -1,0 +1,40 @@
+meta {
+  name: Get Token
+  type: http
+  seq: 1
+}
+
+post {
+  url: https://cognito-idp.{{cognitoRegion}}.amazonaws.com/
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/x-amz-json-1.1
+  X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth
+}
+
+body:json {
+  {
+    "AuthFlow": "USER_PASSWORD_AUTH",
+    "ClientId": "{{cognitoClientId}}",
+    "AuthParameters": {
+      "USERNAME": "{{testUsername}}",
+      "PASSWORD": "{{testPassword}}"
+    }
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.AuthenticationResult) {
+    bru.setEnvVar("idToken", res.body.AuthenticationResult.IdToken);
+  }
+}
+
+tests {
+  test("returns an IdToken", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.body.AuthenticationResult.IdToken).to.be.a("string");
+  });
+}

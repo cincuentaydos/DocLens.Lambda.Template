@@ -34,5 +34,5 @@ variable "embedding_model_id" {
 variable "chat_model_id" {
   description = "Bedrock Claude model used for semantic extraction, chat and drafting."
   type        = string
-  default     = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+  default     = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
 }

@@ -12,15 +12,23 @@ public class BedrockSemanticAnalysisService : ISemanticAnalysisService
 {
     private readonly IAmazonBedrockRuntime _bedrock;
     private readonly BedrockOptions _options;
+    private readonly string _modelId;
     private readonly ILogger<BedrockSemanticAnalysisService> _logger;
 
     public BedrockSemanticAnalysisService(
         IAmazonBedrockRuntime bedrock,
         IOptions<BedrockOptions> options,
+        IConfiguration configuration,
         ILogger<BedrockSemanticAnalysisService> logger)
     {
         _bedrock = bedrock;
         _options = options.Value;
+        // CHAT_MODEL_ID is the Lambda environment variable Terraform sets
+        // (modules/processing/lambdas.tf) — the IAM policy's BedrockGenerate
+        // statement only allows invoking that exact model, so this must
+        // win over BedrockOptions.ModelId's appsettings.json default or
+        // every call gets an AccessDeniedException.
+        _modelId = configuration["CHAT_MODEL_ID"] ?? _options.ModelId;
         _logger = logger;
     }
 
@@ -30,7 +38,7 @@ public class BedrockSemanticAnalysisService : ISemanticAnalysisService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Starting semantic analysis for document type {DocumentType} using model {ModelId}",
-            documentType, _options.ModelId);
+            documentType, _modelId);
 
         var prompt = BuildPrompt(rawText, documentType);
 
@@ -46,7 +54,7 @@ public class BedrockSemanticAnalysisService : ISemanticAnalysisService
 
         var response = await _bedrock.InvokeModelAsync(new InvokeModelRequest
         {
-            ModelId = _options.ModelId,
+            ModelId = _modelId,
             ContentType = "application/json",
             Accept = "application/json",
             Body = new MemoryStream(Encoding.UTF8.GetBytes(requestBody))

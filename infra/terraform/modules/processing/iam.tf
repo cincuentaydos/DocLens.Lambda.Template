@@ -1,6 +1,15 @@
 # Shared statements every Lambda needs to reach Aurora via the RDS Data API
 # (ADR-008) — no VPC networking required.
 locals {
+  # var.chat_model_id is a cross-region inference profile ID (e.g.
+  # "eu.anthropic.claude-haiku-4-5-20251001-v1:0") — some newer Bedrock
+  # models don't support direct on-demand invocation by bare foundation
+  # model ID at all ("The provided model identifier is invalid"). Invoking
+  # through the profile needs bedrock:InvokeModel on BOTH the profile ARN
+  # and the underlying foundation model ARN it routes to, so this strips
+  # the leading "eu."/"us."/"global." routing prefix to get the latter.
+  chat_model_foundation_id = replace(var.chat_model_id, "/^[a-z]+\\./", "")
+
   aurora_data_api_statements = [
     {
       Sid    = "AuroraDataApi"
@@ -83,10 +92,35 @@ resource "aws_iam_role_policy" "api" {
         Resource = var.kms_key_arn
       },
       {
-        Sid      = "BedrockGenerate"
+        # /documents/process currently runs OCR synchronously from the API
+        # Lambda (the endpoint calls TextractOcrService directly) rather
+        # than through the async ADR-006/011 pipeline — that's the
+        # scaffold's current shape, not yet the documented target
+        # architecture. Mirrors the processor role's S3Read/Textract
+        # statements below until this endpoint moves to the queue.
+        Sid      = "S3Read"
         Effect   = "Allow"
-        Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:*::foundation-model/${var.chat_model_id}"
+        Action   = ["s3:GetObject", "s3:GetObjectVersion"]
+        Resource = "${var.document_bucket_arn}/*"
+      },
+      {
+        Sid    = "Textract"
+        Effect = "Allow"
+        Action = [
+          "textract:DetectDocumentText",
+          "textract:StartDocumentTextDetection",
+          "textract:GetDocumentTextDetection"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "BedrockGenerate"
+        Effect = "Allow"
+        Action = ["bedrock:InvokeModel"]
+        Resource = [
+          "arn:aws:bedrock:*::foundation-model/${local.chat_model_foundation_id}",
+          "arn:aws:bedrock:*:*:inference-profile/${var.chat_model_id}"
+        ]
       },
       {
         Sid      = "BedrockRetrieve"
@@ -170,10 +204,13 @@ resource "aws_iam_role_policy" "processor" {
         Resource = aws_iam_role.textract_sns_publish.arn
       },
       {
-        Sid      = "BedrockExtract"
-        Effect   = "Allow"
-        Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:*::foundation-model/${var.chat_model_id}"
+        Sid    = "BedrockExtract"
+        Effect = "Allow"
+        Action = ["bedrock:InvokeModel"]
+        Resource = [
+          "arn:aws:bedrock:*::foundation-model/${local.chat_model_foundation_id}",
+          "arn:aws:bedrock:*:*:inference-profile/${var.chat_model_id}"
+        ]
       },
       {
         Sid      = "XRay"

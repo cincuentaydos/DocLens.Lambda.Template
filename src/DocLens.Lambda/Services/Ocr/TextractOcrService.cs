@@ -7,11 +7,14 @@ public class TextractOcrService : IOcrService
 {
     private readonly IAmazonTextract _textract;
     private readonly ILogger<TextractOcrService> _logger;
+    private readonly string _documentBucket;
 
-    public TextractOcrService(IAmazonTextract textract, ILogger<TextractOcrService> logger)
+    public TextractOcrService(IAmazonTextract textract, IConfiguration configuration, ILogger<TextractOcrService> logger)
     {
         _textract = textract;
         _logger = logger;
+        _documentBucket = configuration["DOCUMENT_BUCKET"]
+            ?? throw new InvalidOperationException("DOCUMENT_BUCKET is not set.");
     }
 
     public async Task<string> ExtractTextAsync(string s3Key, CancellationToken cancellationToken = default)
@@ -25,7 +28,7 @@ public class TextractOcrService : IOcrService
         {
             Document = new Document
             {
-                S3Object = new S3Object { Name = s3Key }
+                S3Object = new S3Object { Bucket = _documentBucket, Name = s3Key }
             }
         }, cancellationToken);
 

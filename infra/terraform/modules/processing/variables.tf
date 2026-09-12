@@ -68,7 +68,7 @@ variable "embedding_model_id" {
 }
 
 variable "chat_model_id" {
-  description = "Bedrock Claude model used for semantic extraction, chat and drafting."
+  description = "Bedrock Claude model used for semantic extraction, chat and drafting. A cross-region inference profile ID (region-prefixed, e.g. \"eu.anthropic...\") — several current Claude models reject direct on-demand invocation by bare foundation model ID (\"The provided model identifier is invalid\"). See iam.tf's chat_model_foundation_id local for why both ARN shapes need bedrock:InvokeModel."
   type        = string
-  default     = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+  default     = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
 }
