@@ -25,8 +25,13 @@ jobs:
     runs-on: ubuntu-latest
     # push events carry no `inputs` — default to sbx, the only environment
     # with a deploy role provisioned so far (see DocLens.Infra/governance).
+    # `environment.url` surfaces the link on this run, the commit status,
+    # and the repo's Environments page — same pattern as DocLens.Web.Template's
+    # cd.yml. Points at Swagger, not the bare API root, since that's what's
+    # actually browsable without a Bearer token.
     environment:
       name: ${{ github.event.inputs.environment || 'sbx' }}
+      url: ${{ vars.SWAGGER_URL }}
 
     steps:
       - name: Checkout repository
@@ -98,4 +103,7 @@ jobs:
         run: aws lambda update-function-code --function-name "${{ vars.LAMBDA_OCR_RESULT_ARN }}" --s3-bucket "${{ vars.LAMBDA_ARTIFACTS_BUCKET }}" --s3-key "${{ steps.upload.outputs.key }}"
 
       - name: Print API endpoint
-        run: echo "### Deployed — API at ${{ vars.API_ENDPOINT }}" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "### Deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- API: ${{ vars.API_ENDPOINT }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Swagger: ${{ vars.SWAGGER_URL }}" >> "$GITHUB_STEP_SUMMARY"
