@@ -19,6 +19,15 @@ locals {
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
       Resource = var.aurora_secret_arn
+    },
+    {
+      # Covers both the Aurora secret above and reading document-bucket
+      # objects below — both are encrypted under the same CMK (DocLens.Infra's
+      # modules/kms), so one kms:Decrypt statement serves every role here.
+      Sid      = "KmsDecrypt"
+      Effect   = "Allow"
+      Action   = ["kms:Decrypt"]
+      Resource = var.kms_key_arn
     }
   ]
 }
@@ -63,6 +72,15 @@ resource "aws_iam_role_policy" "api" {
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
         Resource = "${var.document_bucket_arn}/*"
+      },
+      {
+        # The presigned URL is signed with this role's credentials, so this
+        # role (not the browser that eventually PUTs the object) is who
+        # needs kms:GenerateDataKey for the bucket's default SSE-KMS to apply.
+        Sid      = "S3PresignUploadKms"
+        Effect   = "Allow"
+        Action   = ["kms:GenerateDataKey"]
+        Resource = var.kms_key_arn
       },
       {
         Sid      = "BedrockGenerate"

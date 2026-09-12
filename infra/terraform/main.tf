@@ -68,6 +68,7 @@ module "processing" {
   aurora_secret_arn   = data.terraform_remote_state.infra.outputs.aurora_secret_arn
   user_pool_client_id = data.terraform_remote_state.infra.outputs.user_pool_client_id
   user_pool_endpoint  = data.terraform_remote_state.infra.outputs.user_pool_endpoint
+  kms_key_arn         = data.terraform_remote_state.infra.outputs.kms_key_arn
   lambda_zip_path     = var.lambda_zip_path
   embedding_model_id  = var.embedding_model_id
   chat_model_id       = var.chat_model_id

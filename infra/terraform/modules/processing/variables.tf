@@ -27,6 +27,11 @@ variable "user_pool_endpoint" {
   type = string
 }
 
+variable "kms_key_arn" {
+  description = "CMK the document bucket and the Aurora master secret are encrypted with (DocLens.Infra's modules/kms) — needed for S3/Secrets Manager access under that key."
+  type        = string
+}
+
 variable "lambda_zip_path" {
   description = <<-EOT
     Path to the single Lambda deployment ZIP shared by all three functions
