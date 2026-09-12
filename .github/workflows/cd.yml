@@ -1,0 +1,97 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        required: true
+        type: choice
+        options:
+          - sbx
+          - prod
+        default: sbx
+
+permissions:
+  contents: read
+  id-token: write # required for aws-actions/configure-aws-credentials to assume the OIDC role
+
+jobs:
+  deploy:
+    name: Build, test, and deploy Lambda code
+    runs-on: ubuntu-latest
+    # push events carry no `inputs` — default to sbx, the only environment
+    # with a deploy role provisioned so far (see DocLens.Infra/governance).
+    environment:
+      name: ${{ github.event.inputs.environment || 'sbx' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore DocLens.slnx
+
+      - name: Test
+        run: dotnet test DocLens.slnx --no-restore --configuration Release
+
+      - name: Publish
+        # Self-contained: provided.al2023 has no .NET preinstalled (that's
+        # why this uses the custom runtime instead of a managed dotnetN
+        # one — no dotnet10 runtime exists yet), so the runtime has to
+        # ship inside the package. This makes the ZIP ~90MB+.
+        run: dotnet publish src/DocLens.Lambda -c Release -r linux-x64 --self-contained true --no-restore -o publish
+
+      - name: Package zip
+        # This module deploys all three functions from one ZIP — same
+        # convention as infra/terraform/modules/processing/variables.tf's
+        # lambda_zip_path (each function just points at a different
+        # handler inside the same published assembly).
+        #
+        # `dotnet publish -r linux-x64` names the apphost after the
+        # assembly (DocLens.Lambda), but the provided.al2023 runtime
+        # invokes a file literally named `bootstrap` — rename it and mark
+        # it executable *before* zipping (zip only preserves permissions
+        # set at zip time, not after).
+        run: |
+          cd publish
+          mv DocLens.Lambda bootstrap
+          chmod +x bootstrap
+          zip -r ../doclens-lambda.zip .
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: eu-west-1
+
+      - name: Upload package to S3
+        # A self-contained package is well past the 50MB direct-upload
+        # limit for update-function-code's request body — stage it in S3
+        # (the same artifacts bucket infra/terraform/modules/processing/artifacts.tf
+        # creates) and point Lambda at that instead.
+        id: upload
+        run: |
+          KEY="ci/doclens-lambda-${{ github.sha }}.zip"
+          aws s3 cp doclens-lambda.zip "s3://${{ vars.LAMBDA_ARTIFACTS_BUCKET }}/$KEY"
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy API Lambda
+        run: aws lambda update-function-code --function-name "${{ vars.LAMBDA_API_ARN }}" --s3-bucket "${{ vars.LAMBDA_ARTIFACTS_BUCKET }}" --s3-key "${{ steps.upload.outputs.key }}"
+
+      - name: Deploy Processor Lambda
+        run: aws lambda update-function-code --function-name "${{ vars.LAMBDA_PROCESSOR_ARN }}" --s3-bucket "${{ vars.LAMBDA_ARTIFACTS_BUCKET }}" --s3-key "${{ steps.upload.outputs.key }}"
+
+      - name: Deploy OCR Result Lambda
+        run: aws lambda update-function-code --function-name "${{ vars.LAMBDA_OCR_RESULT_ARN }}" --s3-bucket "${{ vars.LAMBDA_ARTIFACTS_BUCKET }}" --s3-key "${{ steps.upload.outputs.key }}"
+
+      - name: Print API endpoint
+        run: echo "### Deployed — API at ${{ vars.API_ENDPOINT }}" >> "$GITHUB_STEP_SUMMARY"

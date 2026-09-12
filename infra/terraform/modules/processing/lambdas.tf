@@ -8,7 +8,8 @@ resource "aws_lambda_function" "api" {
   role          = aws_iam_role.api.arn
   handler       = var.api_handler
   runtime       = "provided.al2023"
-  filename      = var.lambda_zip_path
+  s3_bucket     = aws_s3_bucket.artifacts.id
+  s3_key        = aws_s3_object.lambda_zip.key
   memory_size   = 512
   timeout       = 29 # stays under the HTTP API integration ceiling — no long work happens here (ADR-010/011)
 
@@ -41,7 +42,8 @@ resource "aws_lambda_function" "processor" {
   role          = aws_iam_role.processor.arn
   handler       = var.processor_handler
   runtime       = "provided.al2023"
-  filename      = var.lambda_zip_path
+  s3_bucket     = aws_s3_bucket.artifacts.id
+  s3_key        = aws_s3_object.lambda_zip.key
   memory_size   = 1024
   timeout       = 300 # accommodates long Textract jobs — ADR-006/011
 
@@ -81,7 +83,8 @@ resource "aws_lambda_function" "ocr_result" {
   role          = aws_iam_role.ocr_result.arn
   handler       = var.ocr_result_handler
   runtime       = "provided.al2023"
-  filename      = var.lambda_zip_path
+  s3_bucket     = aws_s3_bucket.artifacts.id
+  s3_key        = aws_s3_object.lambda_zip.key
   memory_size   = 256
   timeout       = 60
 

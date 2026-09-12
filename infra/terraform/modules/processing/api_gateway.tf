@@ -44,6 +44,24 @@ resource "aws_apigatewayv2_route" "default" {
   target             = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 
+# Swagger UI is the one deliberate exception to "everything requires a
+# Bearer token" — it's API documentation, not data, and Swagger UI itself
+# lets a caller enter a token to try real (still JWT-protected) requests
+# against modules.processing. TenantMiddleware also carves this path out.
+resource "aws_apigatewayv2_route" "swagger" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /swagger/{proxy+}"
+  authorization_type = "NONE"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+resource "aws_apigatewayv2_route" "swagger_root" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "GET /swagger"
+  authorization_type = "NONE"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.main.id
   name        = "$default"

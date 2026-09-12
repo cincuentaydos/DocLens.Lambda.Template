@@ -6,6 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AWSProjectType>Lambda</AWSProjectType>
     <RootNamespace>DocLens.Lambda</RootNamespace>
+    <!-- provided.al2023 has no libicu — self-contained .NET's globalization
+         init crashes on startup without this (see Runtime.ExitError /
+         "Couldn't find a valid ICU package" in CloudWatch). No feature
+         here needs culture-specific formatting, so invariant is fine. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +21,7 @@
     <PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.20.4" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.4.5" />
     <PackageReference Include="AWSSDK.Textract" Version="4.0.4.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
   </ItemGroup>
 
 </Project>

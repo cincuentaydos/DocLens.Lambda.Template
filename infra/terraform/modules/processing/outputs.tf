@@ -18,6 +18,14 @@ output "processor_lambda_arn" {
   value = aws_lambda_function.processor.arn
 }
 
+output "ocr_result_lambda_arn" {
+  value = aws_lambda_function.ocr_result.arn
+}
+
+output "artifacts_bucket_arn" {
+  value = aws_s3_bucket.artifacts.arn
+}
+
 output "processing_queue_arn" {
   value = aws_sqs_queue.processing.arn
 }

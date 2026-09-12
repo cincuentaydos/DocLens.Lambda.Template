@@ -11,6 +11,16 @@ public class TenantMiddleware
 
     public async Task InvokeAsync(HttpContext context, TenantContext tenantContext)
     {
+        // /swagger is the one route API Gateway lets through without a JWT
+        // (see modules/processing/api_gateway.tf) — there's no Cognito
+        // claim to resolve here, so skip tenant resolution instead of
+        // rejecting the request.
+        if (context.Request.Path.StartsWithSegments("/swagger"))
+        {
+            await _next(context);
+            return;
+        }
+
         var tenantId = context.User.FindFirst(TenantIdClaim)?.Value;
 
         if (string.IsNullOrWhiteSpace(tenantId))
